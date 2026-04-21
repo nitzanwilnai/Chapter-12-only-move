@@ -156,7 +156,9 @@ namespace Survivor
                 addedEnemyIndices,
                 ref addedEnemyCount,
                 removedEnemyIndices,
-                ref removedEnemyCount
+                ref removedEnemyCount,
+                m_enemyTransforms,
+                m_poolToEnemyIndex
                 );
 
             for (int i = 0; i < addedEnemyCount; i++)
@@ -178,14 +180,6 @@ namespace Survivor
 
                 m_enemyPoolUnusedIndices[m_enemyPoolUnusedIndicesCount++] = poolIndex;
                 m_poolToEnemyIndex[poolIndex] = -1;
-            }
-
-            for (int i = 0; i < gameData.AliveEnemyCount; i++)
-            {
-                int enemyIndex = gameData.AliveEnemyIndices[i];
-                int poolIndex = m_enemyToPoolIndex[enemyIndex];
-                float2 p = gameData.EnemyPosition[enemyIndex];
-                m_enemyPool[poolIndex].transform.localPosition = new Vector3(p.x, p.y, 0f);
             }
 
             m_boardGUI.GameTimeText.text = CommonVisual.GetTimeElapsedString(gameData.GameTime);

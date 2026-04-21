@@ -132,7 +132,9 @@ namespace Survivor
             Span<int> addedEnemyIndices,
             ref int addedEnemyCount,
             Span<int> removedEnemyIndices,
-            ref int removedEnemyCount
+            ref int removedEnemyCount,
+            TransformAccessArray enemyTransforms,
+            NativeArray<int>     poolToEnemyIndex
             )
         {
             gameData.GameTime += dt;
@@ -161,6 +163,14 @@ namespace Survivor
             doEemyToEnemyCollision(gameData, balance);
 
             movePlayer(gameData, balance, dt);
+
+            SyncEnemyTransformsJob syncJob = new SyncEnemyTransformsJob
+            {
+                EnemyPosition    = gameData.EnemyPosition,
+                PoolToEnemyIndex = poolToEnemyIndex,
+            };
+            JobHandle syncHandle = syncJob.Schedule(enemyTransforms);
+            syncHandle.Complete();
 
             gameOver = false;//checkGameOver(metaData, gameData, balance);
         }
