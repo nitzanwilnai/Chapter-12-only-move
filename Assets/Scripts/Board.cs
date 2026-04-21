@@ -2,7 +2,9 @@ using System;
 using CommonTools;
 using TMPro;
 using UnityEngine;
+using Unity.Collections;
 using Unity.Mathematics;
+using UnityEngine.Jobs;
 
 namespace Survivor
 {
@@ -24,6 +26,8 @@ namespace Survivor
         int m_enemyPoolUnusedIndicesCount;
         int[] m_enemyToPoolIndex;
         int m_enemyPoolCount;
+        TransformAccessArray m_enemyTransforms;
+        NativeArray<int>     m_poolToEnemyIndex;
 
         Camera m_mainCamera;
         Vector2 m_mouseDownPos;
@@ -54,6 +58,10 @@ namespace Survivor
             m_enemyPoolUnusedIndices = new int[MaxEnemyPoolSize];
             m_enemyPoolUnusedIndicesCount = 0;
 
+            m_enemyTransforms  = new TransformAccessArray(MaxEnemyPoolSize);
+            m_poolToEnemyIndex = new NativeArray<int>(MaxEnemyPoolSize, Allocator.Persistent);
+            for (int i = 0; i < MaxEnemyPoolSize; i++) m_poolToEnemyIndex[i] = -1;
+
             m_boardGUI = new BoardGUI();
             m_boardGUI.UI = AssetManager.Instance.GetInGameUI();
 
@@ -65,6 +73,12 @@ namespace Survivor
             InputCircleOut.SetActive(false);
 
             hideUI();
+        }
+
+        void OnDestroy()
+        {
+            if (m_enemyTransforms.isCreated)  m_enemyTransforms.Dispose();
+            if (m_poolToEnemyIndex.IsCreated) m_poolToEnemyIndex.Dispose();
         }
 
         public void StartGame()
@@ -81,6 +95,7 @@ namespace Survivor
                 int poolIndex = getFreeEnemyPoolIndex(enemyType);
                 m_enemyPool[poolIndex].SetActive(true);
                 m_enemyToPoolIndex[enemyIdx] = poolIndex;
+                m_poolToEnemyIndex[poolIndex] = enemyIdx;
             }
             for (int enemyIdx = gameData.AliveEnemyCount; enemyIdx < MaxEnemyPoolSize; enemyIdx++)
             {
@@ -108,6 +123,10 @@ namespace Survivor
             }
             m_enemyPoolCount = 0;
             m_enemyPoolUnusedIndicesCount = 0;
+
+            if (m_enemyTransforms.isCreated) m_enemyTransforms.Dispose();
+            m_enemyTransforms = new TransformAccessArray(MaxEnemyPoolSize);
+            for (int i = 0; i < MaxEnemyPoolSize; i++) m_poolToEnemyIndex[i] = -1;
 
             m_player.SetActive(false);
 
@@ -148,6 +167,7 @@ namespace Survivor
                 int poolIndex = getFreeEnemyPoolIndex(enemyType);
                 m_enemyPool[poolIndex].SetActive(true);
                 m_enemyToPoolIndex[enemyIndex] = poolIndex;
+                m_poolToEnemyIndex[poolIndex] = enemyIndex;
             }
 
             for (int i = 0; i < removedEnemyCount; i++)
@@ -157,6 +177,7 @@ namespace Survivor
                 m_enemyPool[poolIndex].SetActive(false);
 
                 m_enemyPoolUnusedIndices[m_enemyPoolUnusedIndicesCount++] = poolIndex;
+                m_poolToEnemyIndex[poolIndex] = -1;
             }
 
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
@@ -212,6 +233,7 @@ namespace Survivor
                 Debug.Log("m_enemyPool[" + m_enemyPoolCount + "] " + m_enemyPool[m_enemyPoolCount].name);
 
                 m_enemyPoolType[m_enemyPoolCount] = enemyType;
+                m_enemyTransforms.Add(m_enemyPool[m_enemyPoolCount].transform);
                 m_enemyPoolCount++;
                 return m_enemyPoolCount - 1;
             }
