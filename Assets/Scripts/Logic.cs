@@ -107,24 +107,6 @@ namespace Survivor
             removedEnemyIndices[removedEnemyCount++] = enemyIndex;
         }
 
-        static void removeEnemyArrayCopy(GameData gameData, int enemyIndex)
-        {
-            int index = -1;
-            // parse through the array, only re-store values that are not value
-            for (int i = 0; i < gameData.AliveEnemyCount; i++)
-                if (gameData.AliveEnemyIndices[i] == enemyIndex)
-                {
-                    index = i;
-                    break;
-                }
-
-            if (index > -1)
-                for (int i = index; i < gameData.AliveEnemyCount - 1; i++)
-                    gameData.AliveEnemyIndices[i] = gameData.AliveEnemyIndices[i + 1];
-
-            gameData.AliveEnemyCount--;
-        }
-
         private const double DegToRad = Math.PI / 180.0d;
         private const double RadToDeg = 180.0d / Math.PI;
 
@@ -222,8 +204,8 @@ namespace Survivor
 
         static void movePlayer(GameData gameData, Balance balance, float dt)
         {
-            Vector2 playerPos2 = gameData.PlayerDirection * balance.PlayerVelocity * dt;
-            float2 playerDelta = new float2(playerPos2.x, playerPos2.y);
+            Vector2 delta = gameData.PlayerDirection * balance.PlayerVelocity * dt;
+            float2 playerDelta = new float2(delta.x, delta.y);
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
