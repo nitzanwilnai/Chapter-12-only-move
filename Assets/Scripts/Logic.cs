@@ -1,10 +1,12 @@
 using UnityEngine;
 using System;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
 
 namespace Survivor
 {
+    [BurstCompile]
     public static class Logic
     {
         public static void AllocateGameData(GameData gameData, Balance balance)
@@ -142,7 +144,12 @@ namespace Survivor
                     spawnEnemy(gameData, balance, addedEnemyIndices, ref addedEnemyCount);
             }
 
-            moveEnemies(gameData, balance, dt);
+            moveEnemies(
+                gameData.AliveEnemyIndices, gameData.AliveEnemyCount,
+                gameData.EnemyType,
+                gameData.EnemyVelocityNative,
+                gameData.EnemyPosition,
+                dt);
 
             checkEnemyOutOfBounds(gameData, balance, removedEnemyIndices, ref removedEnemyCount);
 
@@ -153,15 +160,22 @@ namespace Survivor
             gameOver = false;//checkGameOver(metaData, gameData, balance);
         }
 
-        static void moveEnemies(GameData gameData, Balance balance, float dt)
+        [BurstCompile]
+        static void moveEnemies(
+            NativeArray<int>    aliveEnemyIndices,
+            int                 aliveCount,
+            NativeArray<int>    enemyType,
+            NativeArray<float>  enemyVelocity,
+            NativeArray<float2> enemyPosition,
+            float               dt)
         {
-            for (int i = 0; i < gameData.AliveEnemyCount; i++)
+            for (int i = 0; i < aliveCount; i++)
             {
-                int enemyIndex = gameData.AliveEnemyIndices[i];
-                float2 pos     = gameData.EnemyPosition[enemyIndex];
-                float2 dir     = -math.normalizesafe(pos);
-                int    enemyType = gameData.EnemyType[enemyIndex];
-                gameData.EnemyPosition[enemyIndex] = pos + dir * balance.EnemyVelocity[enemyType] * dt;
+                int    enemyIndex = aliveEnemyIndices[i];
+                float2 pos        = enemyPosition[enemyIndex];
+                float2 dir        = -math.normalizesafe(pos);
+                float  speed      = enemyVelocity[enemyType[enemyIndex]];
+                enemyPosition[enemyIndex] = pos + dir * speed * dt;
             }
         }
 
