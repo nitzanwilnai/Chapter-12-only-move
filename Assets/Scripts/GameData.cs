@@ -18,8 +18,7 @@ namespace Survivor
         public NativeArray<Entity> EnemyEntity;
         public NativeArray<int>    EnemyType;
 
-        public World       EcsWorld;
-        public EntityQuery EnemyMoveQuery;
+        public World EcsWorld;
 
         public Vector2 PlayerDirection;
 

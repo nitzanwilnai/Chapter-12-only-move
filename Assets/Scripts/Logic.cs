@@ -2,7 +2,6 @@ using UnityEngine;
 using System;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
@@ -18,10 +17,6 @@ namespace Survivor
             gameData.DeadEnemyIndices  = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
 
             gameData.EcsWorld = new World("EnemyWorld");
-            gameData.EnemyMoveQuery = gameData.EcsWorld.EntityManager.CreateEntityQuery(
-                ComponentType.ReadWrite<LocalTransform>(),
-                ComponentType.ReadOnly<EnemyMoveSpeed>()
-            );
         }
 
         public static void FreeGameData(GameData gameData)
@@ -194,9 +189,19 @@ namespace Survivor
 
         static void moveEnemies(GameData gameData, float dt)
         {
-            MoveEnemyJob job = new MoveEnemyJob { Dt = dt };
-            JobHandle handle = job.Schedule(gameData.EnemyMoveQuery, default);
-            handle.Complete();
+            EntityManager em = gameData.EcsWorld.EntityManager;
+            for (int i = 0; i < gameData.AliveEnemyCount; i++)
+            {
+                int enemyIndex = gameData.AliveEnemyIndices[i];
+                Entity e = gameData.EnemyEntity[enemyIndex];
+                LocalTransform t = em.GetComponentData<LocalTransform>(e);
+                float speed = em.GetComponentData<EnemyMoveSpeed>(e).Value;
+                float2 pos2 = new float2(t.Position.x, t.Position.y);
+                float2 dir = -math.normalizesafe(pos2);
+                float2 newPos = pos2 + dir * speed * dt;
+                t.Position = new float3(newPos.x, newPos.y, 0f);
+                em.SetComponentData(e, t);
+            }
         }
 
         static void doEemyToEnemyCollision(GameData gameData, Balance balance)
