@@ -2,7 +2,9 @@ using System;
 using CommonTools;
 using TMPro;
 using UnityEngine;
+using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Survivor
 {
@@ -159,12 +161,14 @@ namespace Survivor
                 m_enemyPoolUnusedIndices[m_enemyPoolUnusedIndicesCount++] = poolIndex;
             }
 
+            EntityManager em = gameData.EcsWorld.EntityManager;
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
                 int poolIndex = m_enemyToPoolIndex[enemyIndex];
-                float2 p = gameData.EnemyPosition[enemyIndex];
-                m_enemyPool[poolIndex].transform.localPosition = new Vector3(p.x, p.y, 0f);
+                Entity e = gameData.EnemyEntity[enemyIndex];
+                LocalTransform t = em.GetComponentData<LocalTransform>(e);
+                m_enemyPool[poolIndex].transform.localPosition = new Vector3(t.Position.x, t.Position.y, 0f);
             }
 
             m_boardGUI.GameTimeText.text = CommonVisual.GetTimeElapsedString(gameData.GameTime);

@@ -1,6 +1,6 @@
 using UnityEngine;
 using Unity.Collections;
-using Unity.Mathematics;
+using Unity.Entities;
 
 namespace Survivor
 {
@@ -15,10 +15,11 @@ namespace Survivor
 
         public float SpawnTime;
 
-        public NativeArray<float2> EnemyPosition;
+        public NativeArray<Entity> EnemyEntity;
         public NativeArray<int>    EnemyType;
 
-        public NativeArray<float> EnemyVelocityNative;
+        public World       EcsWorld;
+        public EntityQuery EnemyMoveQuery;
 
         public Vector2 PlayerDirection;
 

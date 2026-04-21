@@ -2,7 +2,9 @@ using System;
 using System.IO;
 using UnityEngine;
 using UnityEngine.Assertions.Must;
+using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Survivor
 {
@@ -34,10 +36,21 @@ public static class GameDataIO
 
             bw.Write(balance.MaxEnemies);
 
+            EntityManager em = gameData.EcsWorld.EntityManager;
             for (int i = 0; i < balance.MaxEnemies; i++)
             {
-                bw.Write(gameData.EnemyPosition[i].x);
-                bw.Write(gameData.EnemyPosition[i].y);
+                Entity e = gameData.EnemyEntity[i];
+                if (e != Entity.Null && em.Exists(e))
+                {
+                    LocalTransform t = em.GetComponentData<LocalTransform>(e);
+                    bw.Write(t.Position.x);
+                    bw.Write(t.Position.y);
+                }
+                else
+                {
+                    bw.Write(0f);
+                    bw.Write(0f);
+                }
             }
 
             for (int i = 0; i < balance.MaxEnemies; i++)
@@ -75,11 +88,12 @@ public static class GameDataIO
                     gameData.DeadEnemyIndices[i] = br.ReadInt32();
 
                 int numEnemies = br.ReadInt32();
+                float2[] loadedPositions = new float2[numEnemies];
                 for (int i = 0; i < numEnemies; i++)
                 {
                     float x = br.ReadSingle();
                     float y = br.ReadSingle();
-                    gameData.EnemyPosition[i] = new float2(x, y);
+                    loadedPositions[i] = new float2(x, y);
                 }
 
                 for (int i = 0; i < numEnemies; i++)
@@ -105,6 +119,24 @@ public static class GameDataIO
                             }
                         }
                     }
+                }
+
+                EntityManager em = gameData.EcsWorld.EntityManager;
+                for (int i = 0; i < balance.MaxEnemies; i++)
+                {
+                    Entity existing = gameData.EnemyEntity[i];
+                    if (existing != Entity.Null && em.Exists(existing))
+                        em.DestroyEntity(existing);
+                    gameData.EnemyEntity[i] = Entity.Null;
+                }
+                for (int i = 0; i < gameData.AliveEnemyCount; i++)
+                {
+                    int enemyIndex = gameData.AliveEnemyIndices[i];
+                    int type = gameData.EnemyType[enemyIndex];
+                    Entity e = em.CreateEntity();
+                    em.AddComponentData(e, LocalTransform.FromPosition(new float3(loadedPositions[enemyIndex].x, loadedPositions[enemyIndex].y, 0f)));
+                    em.AddComponentData(e, new EnemyMoveSpeed { Value = balance.EnemyVelocity[type] });
+                    gameData.EnemyEntity[enemyIndex] = e;
                 }
             }
         }

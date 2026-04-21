@@ -1,7 +1,10 @@
 using UnityEngine;
 using System;
 using Unity.Collections;
+using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Survivor
 {
@@ -9,20 +12,30 @@ namespace Survivor
     {
         public static void AllocateGameData(GameData gameData, Balance balance)
         {
-            gameData.EnemyPosition       = new NativeArray<float2>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.EnemyType           = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.AliveEnemyIndices   = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.DeadEnemyIndices    = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.EnemyVelocityNative = new NativeArray<float>(balance.EnemyVelocity, Allocator.Persistent);
+            gameData.EnemyEntity       = new NativeArray<Entity>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.EnemyType         = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.AliveEnemyIndices = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.DeadEnemyIndices  = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+
+            gameData.EcsWorld = new World("EnemyWorld");
+            gameData.EnemyMoveQuery = gameData.EcsWorld.EntityManager.CreateEntityQuery(
+                ComponentType.ReadWrite<LocalTransform>(),
+                ComponentType.ReadOnly<EnemyMoveSpeed>()
+            );
         }
 
         public static void FreeGameData(GameData gameData)
         {
-            if (gameData.EnemyPosition.IsCreated)       gameData.EnemyPosition.Dispose();
-            if (gameData.EnemyType.IsCreated)           gameData.EnemyType.Dispose();
-            if (gameData.AliveEnemyIndices.IsCreated)   gameData.AliveEnemyIndices.Dispose();
-            if (gameData.DeadEnemyIndices.IsCreated)    gameData.DeadEnemyIndices.Dispose();
-            if (gameData.EnemyVelocityNative.IsCreated) gameData.EnemyVelocityNative.Dispose();
+            if (gameData.EnemyEntity.IsCreated)       gameData.EnemyEntity.Dispose();
+            if (gameData.EnemyType.IsCreated)         gameData.EnemyType.Dispose();
+            if (gameData.AliveEnemyIndices.IsCreated) gameData.AliveEnemyIndices.Dispose();
+            if (gameData.DeadEnemyIndices.IsCreated)  gameData.DeadEnemyIndices.Dispose();
+
+            if (gameData.EcsWorld != null && gameData.EcsWorld.IsCreated)
+            {
+                gameData.EcsWorld.Dispose();
+                gameData.EcsWorld = null;
+            }
         }
 
         public static void Init(MetaData metaData)
@@ -43,6 +56,20 @@ namespace Survivor
                 gameData.DeadEnemyIndices[i] = balance.MaxEnemies - 1 - i;
             gameData.DeadEnemyCount = balance.MaxEnemies;
             gameData.AliveEnemyCount = 0;
+
+            destroyAllEnemyEntities(gameData, balance);
+        }
+
+        static void destroyAllEnemyEntities(GameData gameData, Balance balance)
+        {
+            EntityManager em = gameData.EcsWorld.EntityManager;
+            for (int i = 0; i < balance.MaxEnemies; i++)
+            {
+                Entity e = gameData.EnemyEntity[i];
+                if (e != Entity.Null && em.Exists(e))
+                    em.DestroyEntity(e);
+                gameData.EnemyEntity[i] = Entity.Null;
+            }
         }
 
         static bool canSpawnEnemy(GameData gameData, Balance balance)
@@ -65,8 +92,14 @@ namespace Survivor
             }
             direction = RotateVector(direction, angle);
             Vector2 spawnPos = direction.normalized * balance.SpawnRadius;
-            gameData.EnemyPosition[enemyIndex] = new float2(spawnPos.x, spawnPos.y);
-            gameData.EnemyType[enemyIndex] = getRandomEnemyTypeByWeight(balance);
+            int enemyType = getRandomEnemyTypeByWeight(balance);
+            gameData.EnemyType[enemyIndex] = enemyType;
+
+            EntityManager em = gameData.EcsWorld.EntityManager;
+            Entity e = em.CreateEntity();
+            em.AddComponentData(e, LocalTransform.FromPosition(new float3(spawnPos.x, spawnPos.y, 0f)));
+            em.AddComponentData(e, new EnemyMoveSpeed { Value = balance.EnemyVelocity[enemyType] });
+            gameData.EnemyEntity[enemyIndex] = e;
         }
 
         private static int getRandomEnemyTypeByWeight(Balance balance)
@@ -105,6 +138,12 @@ namespace Survivor
 
             gameData.DeadEnemyIndices[gameData.DeadEnemyCount++] = enemyIndex;
             removedEnemyIndices[removedEnemyCount++] = enemyIndex;
+
+            EntityManager em = gameData.EcsWorld.EntityManager;
+            Entity e = gameData.EnemyEntity[enemyIndex];
+            if (e != Entity.Null && em.Exists(e))
+                em.DestroyEntity(e);
+            gameData.EnemyEntity[enemyIndex] = Entity.Null;
         }
 
         private const double DegToRad = Math.PI / 180.0d;
@@ -142,7 +181,7 @@ namespace Survivor
                     spawnEnemy(gameData, balance, addedEnemyIndices, ref addedEnemyCount);
             }
 
-            moveEnemies(gameData, balance, dt);
+            moveEnemies(gameData, dt);
 
             checkEnemyOutOfBounds(gameData, balance, removedEnemyIndices, ref removedEnemyCount);
 
@@ -153,29 +192,31 @@ namespace Survivor
             gameOver = false;//checkGameOver(metaData, gameData, balance);
         }
 
-        static void moveEnemies(GameData gameData, Balance balance, float dt)
+        static void moveEnemies(GameData gameData, float dt)
         {
-            for (int i = 0; i < gameData.AliveEnemyCount; i++)
-            {
-                int enemyIndex = gameData.AliveEnemyIndices[i];
-                float2 pos     = gameData.EnemyPosition[enemyIndex];
-                float2 dir     = -math.normalizesafe(pos);
-                int    enemyType = gameData.EnemyType[enemyIndex];
-                gameData.EnemyPosition[enemyIndex] = pos + dir * balance.EnemyVelocity[enemyType] * dt;
-            }
+            MoveEnemyJob job = new MoveEnemyJob { Dt = dt };
+            JobHandle handle = job.Schedule(gameData.EnemyMoveQuery, default);
+            handle.Complete();
         }
 
         static void doEemyToEnemyCollision(GameData gameData, Balance balance)
         {
+            EntityManager em = gameData.EcsWorld.EntityManager;
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex1 = gameData.AliveEnemyIndices[i];
+                Entity e1 = gameData.EnemyEntity[enemyIndex1];
+                LocalTransform t1 = em.GetComponentData<LocalTransform>(e1);
                 float radius1 = balance.EnemyRadius[gameData.EnemyType[enemyIndex1]];
+
                 for (int j = i + 1; j < gameData.AliveEnemyCount; j++)
                 {
                     int enemyIndex2 = gameData.AliveEnemyIndices[j];
-                    float2 pos1 = gameData.EnemyPosition[enemyIndex1];
-                    float2 pos2 = gameData.EnemyPosition[enemyIndex2];
+                    Entity e2 = gameData.EnemyEntity[enemyIndex2];
+                    LocalTransform t2 = em.GetComponentData<LocalTransform>(e2);
+
+                    float2 pos1 = new float2(t1.Position.x, t1.Position.y);
+                    float2 pos2 = new float2(t2.Position.x, t2.Position.y);
                     float2 diff = pos1 - pos2;
                     float distance = radius1 + balance.EnemyRadius[gameData.EnemyType[enemyIndex2]];
                     float distanceSqr = distance * distance;
@@ -184,8 +225,12 @@ namespace Survivor
                         float2 diffNormalized = math.normalizesafe(diff);
                         float2 midPoint = (pos1 + pos2) * 0.5f;
                         float halfTotalRadius = (balance.EnemyRadius[gameData.EnemyType[enemyIndex1]] + balance.EnemyRadius[gameData.EnemyType[enemyIndex2]]) * 0.5f;
-                        gameData.EnemyPosition[enemyIndex1] = midPoint + diffNormalized * halfTotalRadius;
-                        gameData.EnemyPosition[enemyIndex2] = midPoint - diffNormalized * halfTotalRadius;
+                        float2 new1 = midPoint + diffNormalized * halfTotalRadius;
+                        float2 new2 = midPoint - diffNormalized * halfTotalRadius;
+                        t1.Position = new float3(new1.x, new1.y, 0f);
+                        t2.Position = new float3(new2.x, new2.y, 0f);
+                        em.SetComponentData(e1, t1);
+                        em.SetComponentData(e2, t2);
                     }
                 }
             }
@@ -193,11 +238,15 @@ namespace Survivor
 
         static void checkEnemyOutOfBounds(GameData gameData, Balance balance, Span<int> removedEnemyIndices, ref int removedEnemyCount)
         {
+            EntityManager em = gameData.EcsWorld.EntityManager;
             float distanceSqr = balance.SpawnRadius * balance.SpawnRadius * 1.1f;
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
-                if (math.lengthsq(gameData.EnemyPosition[enemyIndex]) > distanceSqr)
+                Entity e = gameData.EnemyEntity[enemyIndex];
+                LocalTransform t = em.GetComponentData<LocalTransform>(e);
+                float2 pos2 = new float2(t.Position.x, t.Position.y);
+                if (math.lengthsq(pos2) > distanceSqr)
                     removeEnemy(gameData, enemyIndex, removedEnemyIndices, ref removedEnemyCount);
             }
         }
@@ -206,10 +255,14 @@ namespace Survivor
         {
             Vector2 delta = gameData.PlayerDirection * balance.PlayerVelocity * dt;
             float2 playerDelta = new float2(delta.x, delta.y);
+            EntityManager em = gameData.EcsWorld.EntityManager;
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
-                gameData.EnemyPosition[enemyIndex] -= playerDelta;
+                Entity e = gameData.EnemyEntity[enemyIndex];
+                LocalTransform t = em.GetComponentData<LocalTransform>(e);
+                t.Position = new float3(t.Position.x - playerDelta.x, t.Position.y - playerDelta.y, 0f);
+                em.SetComponentData(e, t);
             }
         }
 
@@ -225,10 +278,14 @@ namespace Survivor
 
         static bool checkGameOver(MetaData metaData, GameData gameData, Balance balance)
         {
+            EntityManager em = gameData.EcsWorld.EntityManager;
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
-                if (math.length(gameData.EnemyPosition[enemyIndex]) < balance.PlayerRadius)
+                Entity e = gameData.EnemyEntity[enemyIndex];
+                LocalTransform t = em.GetComponentData<LocalTransform>(e);
+                float2 pos2 = new float2(t.Position.x, t.Position.y);
+                if (math.length(pos2) < balance.PlayerRadius)
                 {
                     if (gameData.GameTime > metaData.BestTime)
                         metaData.BestTime = gameData.GameTime;
