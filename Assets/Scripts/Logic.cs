@@ -2,6 +2,8 @@ using UnityEngine;
 using System;
 using Unity.Collections;
 using Unity.Mathematics;
+using Unity.Burst;
+using Unity.Jobs;
 
 namespace Survivor
 {
@@ -243,6 +245,28 @@ namespace Survivor
         public static void SetMenuState(MetaData metaData, MENU_STATE newMenuState)
         {
             metaData.MenuState = newMenuState;
+        }
+    }
+
+    [BurstCompile]
+    struct MoveEnemiesJob : IJobParallelFor
+    {
+        [ReadOnly] public NativeArray<int>   AliveEnemyIndices;
+        [ReadOnly] public NativeArray<int>   EnemyType;
+        [ReadOnly] public NativeArray<float> EnemyVelocity;
+
+        [NativeDisableParallelForRestriction]
+        public NativeArray<float2> EnemyPosition;
+
+        public float Dt;
+
+        public void Execute(int i)
+        {
+            int    enemyIndex = AliveEnemyIndices[i];
+            float2 pos        = EnemyPosition[enemyIndex];
+            float2 dir        = -math.normalizesafe(pos);
+            float  speed      = EnemyVelocity[EnemyType[enemyIndex]];
+            EnemyPosition[enemyIndex] = pos + dir * speed * Dt;
         }
     }
 }
