@@ -1,5 +1,7 @@
 using UnityEngine;
 using System;
+using Unity.Collections;
+using Unity.Mathematics;
 
 namespace Survivor
 {
@@ -7,11 +9,20 @@ namespace Survivor
     {
         public static void AllocateGameData(GameData gameData, Balance balance)
         {
-            gameData.EnemyPosition = new Vector2[balance.MaxEnemies];
-            gameData.EnemyType = new int[balance.MaxEnemies];
+            gameData.EnemyPosition       = new NativeArray<float2>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.EnemyType           = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.AliveEnemyIndices   = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.DeadEnemyIndices    = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.EnemyVelocityNative = new NativeArray<float>(balance.EnemyVelocity, Allocator.Persistent);
+        }
 
-            gameData.AliveEnemyIndices = new int[balance.MaxEnemies];
-            gameData.DeadEnemyIndices = new int[balance.MaxEnemies];
+        public static void FreeGameData(GameData gameData)
+        {
+            if (gameData.EnemyPosition.IsCreated)       gameData.EnemyPosition.Dispose();
+            if (gameData.EnemyType.IsCreated)           gameData.EnemyType.Dispose();
+            if (gameData.AliveEnemyIndices.IsCreated)   gameData.AliveEnemyIndices.Dispose();
+            if (gameData.DeadEnemyIndices.IsCreated)    gameData.DeadEnemyIndices.Dispose();
+            if (gameData.EnemyVelocityNative.IsCreated) gameData.EnemyVelocityNative.Dispose();
         }
 
         public static void Init(MetaData metaData)
@@ -41,7 +52,6 @@ namespace Survivor
 
         static void spawnEnemy(GameData gameData, Balance balance, Span<int> addedEnemyIndices, ref int addedEnemyCount)
         {
-            // Debug.Log("Spawning enemy");
             int enemyIndex = gameData.DeadEnemyIndices[--gameData.DeadEnemyCount];
             gameData.AliveEnemyIndices[gameData.AliveEnemyCount++] = enemyIndex;
             addedEnemyIndices[addedEnemyCount++] = enemyIndex;
@@ -54,8 +64,9 @@ namespace Survivor
                 angle = UnityEngine.Random.value * 360.0f;
             }
             direction = RotateVector(direction, angle);
-            gameData.EnemyPosition[enemyIndex] = direction.normalized * balance.SpawnRadius;
-            gameData.EnemyType[enemyIndex] = getRandomEnemyTypeByWeight(balance); ;
+            Vector2 spawnPos = direction.normalized * balance.SpawnRadius;
+            gameData.EnemyPosition[enemyIndex] = new float2(spawnPos.x, spawnPos.y);
+            gameData.EnemyType[enemyIndex] = getRandomEnemyTypeByWeight(balance);
         }
 
         private static int getRandomEnemyTypeByWeight(Balance balance)
@@ -108,7 +119,8 @@ namespace Survivor
                 }
 
             if (index > -1)
-                Array.Copy(gameData.AliveEnemyIndices, index + 1, gameData.AliveEnemyIndices, index, gameData.AliveEnemyCount - index - 1);
+                for (int i = index; i < gameData.AliveEnemyCount - 1; i++)
+                    gameData.AliveEnemyIndices[i] = gameData.AliveEnemyIndices[i + 1];
 
             gameData.AliveEnemyCount--;
         }
@@ -164,9 +176,10 @@ namespace Survivor
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
-                Vector2 dir = -gameData.EnemyPosition[enemyIndex].normalized;
-                int enemyType = gameData.EnemyType[enemyIndex];
-                gameData.EnemyPosition[enemyIndex] = gameData.EnemyPosition[enemyIndex] + dir * balance.EnemyVelocity[enemyType] * dt;
+                float2 pos     = gameData.EnemyPosition[enemyIndex];
+                float2 dir     = -math.normalizesafe(pos);
+                int    enemyType = gameData.EnemyType[enemyIndex];
+                gameData.EnemyPosition[enemyIndex] = pos + dir * balance.EnemyVelocity[enemyType] * dt;
             }
         }
 
@@ -179,14 +192,16 @@ namespace Survivor
                 for (int j = i + 1; j < gameData.AliveEnemyCount; j++)
                 {
                     int enemyIndex2 = gameData.AliveEnemyIndices[j];
-                    Vector2 diff = gameData.EnemyPosition[enemyIndex1] - gameData.EnemyPosition[enemyIndex2];
+                    float2 pos1 = gameData.EnemyPosition[enemyIndex1];
+                    float2 pos2 = gameData.EnemyPosition[enemyIndex2];
+                    float2 diff = pos1 - pos2;
                     float distance = radius1 + balance.EnemyRadius[gameData.EnemyType[enemyIndex2]];
                     float distanceSqr = distance * distance;
-                    if (diff.sqrMagnitude <= distanceSqr)
+                    if (math.lengthsq(diff) <= distanceSqr)
                     {
-                        Vector2 diffNormalized = diff.normalized;
-                        Vector2 midPoint = (gameData.EnemyPosition[enemyIndex1] + gameData.EnemyPosition[enemyIndex2]) / 2.0f;
-                        float halfTotalRadius = (balance.EnemyRadius[gameData.EnemyType[enemyIndex1]] + balance.EnemyRadius[gameData.EnemyType[enemyIndex2]]) / 2.0f;
+                        float2 diffNormalized = math.normalizesafe(diff);
+                        float2 midPoint = (pos1 + pos2) * 0.5f;
+                        float halfTotalRadius = (balance.EnemyRadius[gameData.EnemyType[enemyIndex1]] + balance.EnemyRadius[gameData.EnemyType[enemyIndex2]]) * 0.5f;
                         gameData.EnemyPosition[enemyIndex1] = midPoint + diffNormalized * halfTotalRadius;
                         gameData.EnemyPosition[enemyIndex2] = midPoint - diffNormalized * halfTotalRadius;
                     }
@@ -200,18 +215,19 @@ namespace Survivor
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
-                if (gameData.EnemyPosition[enemyIndex].sqrMagnitude > distanceSqr)
+                if (math.lengthsq(gameData.EnemyPosition[enemyIndex]) > distanceSqr)
                     removeEnemy(gameData, enemyIndex, removedEnemyIndices, ref removedEnemyCount);
             }
         }
 
         static void movePlayer(GameData gameData, Balance balance, float dt)
         {
-            Vector2 playerPosition = gameData.PlayerDirection * balance.PlayerVelocity * dt;
+            Vector2 playerPos2 = gameData.PlayerDirection * balance.PlayerVelocity * dt;
+            float2 playerDelta = new float2(playerPos2.x, playerPos2.y);
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
-                gameData.EnemyPosition[enemyIndex] -= playerPosition;
+                gameData.EnemyPosition[enemyIndex] -= playerDelta;
             }
         }
 
@@ -230,7 +246,7 @@ namespace Survivor
             for (int i = 0; i < gameData.AliveEnemyCount; i++)
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
-                if (gameData.EnemyPosition[enemyIndex].magnitude < balance.PlayerRadius)
+                if (math.length(gameData.EnemyPosition[enemyIndex]) < balance.PlayerRadius)
                 {
                     if (gameData.GameTime > metaData.BestTime)
                         metaData.BestTime = gameData.GameTime;

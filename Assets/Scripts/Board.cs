@@ -2,6 +2,7 @@ using System;
 using CommonTools;
 using TMPro;
 using UnityEngine;
+using Unity.Mathematics;
 
 namespace Survivor
 {
@@ -162,7 +163,8 @@ namespace Survivor
             {
                 int enemyIndex = gameData.AliveEnemyIndices[i];
                 int poolIndex = m_enemyToPoolIndex[enemyIndex];
-                m_enemyPool[poolIndex].transform.localPosition = gameData.EnemyPosition[enemyIndex];
+                float2 p = gameData.EnemyPosition[enemyIndex];
+                m_enemyPool[poolIndex].transform.localPosition = new Vector3(p.x, p.y, 0f);
             }
 
             m_boardGUI.GameTimeText.text = CommonVisual.GetTimeElapsedString(gameData.GameTime);

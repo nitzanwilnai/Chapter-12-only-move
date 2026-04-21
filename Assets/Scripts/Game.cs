@@ -20,6 +20,11 @@ namespace Survivor
 
         int m_screenShotIdx = 0;
 
+        void OnDestroy()
+        {
+            Logic.FreeGameData(m_gameData);
+        }
+
         // Start is called before the first frame update
         void Start()
         {

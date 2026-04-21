@@ -1,6 +1,6 @@
 using UnityEngine;
-using System.IO;
-using System;
+using Unity.Collections;
+using Unity.Mathematics;
 
 namespace Survivor
 {
@@ -8,15 +8,17 @@ namespace Survivor
     {
         public bool InGame;
 
-        public int[] AliveEnemyIndices;
+        public NativeArray<int> AliveEnemyIndices;
         public int AliveEnemyCount;
-        public int[] DeadEnemyIndices;
+        public NativeArray<int> DeadEnemyIndices;
         public int DeadEnemyCount;
 
         public float SpawnTime;
 
-        public Vector2[] EnemyPosition;
-        public int[] EnemyType;
+        public NativeArray<float2> EnemyPosition;
+        public NativeArray<int>    EnemyType;
+
+        public NativeArray<float> EnemyVelocityNative;
 
         public Vector2 PlayerDirection;
 

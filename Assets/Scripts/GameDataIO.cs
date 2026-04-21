@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using UnityEngine;
 using UnityEngine.Assertions.Must;
+using Unity.Mathematics;
 
 namespace Survivor
 {
@@ -76,8 +77,9 @@ public static class GameDataIO
                 int numEnemies = br.ReadInt32();
                 for (int i = 0; i < numEnemies; i++)
                 {
-                    gameData.EnemyPosition[i].x = br.ReadSingle();
-                    gameData.EnemyPosition[i].y = br.ReadSingle();
+                    float x = br.ReadSingle();
+                    float y = br.ReadSingle();
+                    gameData.EnemyPosition[i] = new float2(x, y);
                 }
 
                 for (int i = 0; i < numEnemies; i++)
