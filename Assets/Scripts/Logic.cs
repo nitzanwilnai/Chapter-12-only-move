@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Burst;
 using Unity.Jobs;
+using UnityEngine.Jobs;
 
 namespace Survivor
 {
@@ -264,6 +265,21 @@ namespace Survivor
             float2 dir        = -math.normalizesafe(pos);
             float  speed      = EnemyVelocity[EnemyType[enemyIndex]];
             EnemyPosition[enemyIndex] = pos + dir * speed * Dt;
+        }
+    }
+
+    [BurstCompile]
+    struct SyncEnemyTransformsJob : IJobParallelForTransform
+    {
+        [ReadOnly] public NativeArray<float2> EnemyPosition;
+        [ReadOnly] public NativeArray<int>    PoolToEnemyIndex;
+
+        public void Execute(int poolIndex, TransformAccess transform)
+        {
+            int enemyIndex = PoolToEnemyIndex[poolIndex];
+            if (enemyIndex < 0) return;
+            float2 p = EnemyPosition[enemyIndex];
+            transform.localPosition = new Vector3(p.x, p.y, 0f);
         }
     }
 }
