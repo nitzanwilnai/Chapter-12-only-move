@@ -34,28 +34,16 @@ Files modified:
 
 ---
 
-### Task 1: Install Unity Jobs + Burst + Collections + Mathematics packages
+### Task 1: Install Unity Burst + Mathematics + Collections packages
 
 **Files:**
 - Modify: `Packages/manifest.json`
 
-- [ ] **Step 1: Edit `Packages/manifest.json` to add 4 dependencies**
+Unity version (from `ProjectSettings/ProjectVersion.txt`) is **2022.3.62f2**. For this version, `IJobParallelFor`, `JobHandle`, `IJobParallelForTransform`, and `TransformAccessArray` are all in Unity core (shipped with the `Unity.Jobs` and `UnityEngine.Jobs` namespaces built into the engine). We only need three packages: Burst (for the `[BurstCompile]` attribute), Mathematics (for `float2` and `math.*`), and Collections (for `[NativeDisableParallelForRestriction]` in Unity 2022).
 
-Insert these four lines alphabetically in the `dependencies` block (right after `"com.unity.collab-proxy"`):
+- [ ] **Step 1: Edit `Packages/manifest.json` to add 3 dependencies**
 
-```json
-    "com.unity.burst": "1.8.12",
-    "com.unity.collections": "2.1.4",
-```
-
-And these two after `"com.unity.ide.visualstudio"` / before `"com.unity.mathematics"` position (they're alphabetical — add them where they fit):
-
-```json
-    "com.unity.jobs": "0.70.0-preview.7",
-    "com.unity.mathematics": "1.3.1",
-```
-
-Final `manifest.json` `dependencies` should contain (interleaved with existing entries in alphabetical order):
+Final `manifest.json` `dependencies` block should include these three new entries (alphabetized with the existing entries):
 
 ```json
 {
@@ -66,7 +54,6 @@ Final `manifest.json` `dependencies` should contain (interleaved with existing e
     "com.unity.feature.2d": "2.0.1",
     "com.unity.ide.rider": "3.0.36",
     "com.unity.ide.visualstudio": "2.0.22",
-    "com.unity.jobs": "0.70.0-preview.7",
     "com.unity.mathematics": "1.3.1",
     "com.unity.test-framework": "1.1.33",
     "com.unity.textmeshpro": "3.0.7",
@@ -75,7 +62,7 @@ Final `manifest.json` `dependencies` should contain (interleaved with existing e
 }
 ```
 
-(If any of these versions are newer than what Unity's Package Manager offers, Unity will substitute a compatible one automatically — that's fine.)
+(If any of these versions are newer than what Unity's Package Manager offers, Unity will substitute a compatible one automatically — that's fine. Do **not** add `com.unity.jobs` — that's a separate experimental package we don't need.)
 
 - [ ] **Step 2: Switch to the Unity Editor and let it import the new packages**
 
