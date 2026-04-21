@@ -144,7 +144,16 @@ namespace Survivor
                     spawnEnemy(gameData, balance, addedEnemyIndices, ref addedEnemyCount);
             }
 
-            moveEnemies(gameData, balance, dt);
+            MoveEnemiesJob moveJob = new MoveEnemiesJob
+            {
+                AliveEnemyIndices = gameData.AliveEnemyIndices,
+                EnemyType         = gameData.EnemyType,
+                EnemyVelocity     = gameData.EnemyVelocityNative,
+                EnemyPosition     = gameData.EnemyPosition,
+                Dt                = dt,
+            };
+            JobHandle moveHandle = moveJob.Schedule(gameData.AliveEnemyCount, 64);
+            moveHandle.Complete();
 
             checkEnemyOutOfBounds(gameData, balance, removedEnemyIndices, ref removedEnemyCount);
 
@@ -153,18 +162,6 @@ namespace Survivor
             movePlayer(gameData, balance, dt);
 
             gameOver = false;//checkGameOver(metaData, gameData, balance);
-        }
-
-        static void moveEnemies(GameData gameData, Balance balance, float dt)
-        {
-            for (int i = 0; i < gameData.AliveEnemyCount; i++)
-            {
-                int enemyIndex = gameData.AliveEnemyIndices[i];
-                float2 pos     = gameData.EnemyPosition[enemyIndex];
-                float2 dir     = -math.normalizesafe(pos);
-                int    enemyType = gameData.EnemyType[enemyIndex];
-                gameData.EnemyPosition[enemyIndex] = pos + dir * balance.EnemyVelocity[enemyType] * dt;
-            }
         }
 
         static void doEemyToEnemyCollision(GameData gameData, Balance balance)
