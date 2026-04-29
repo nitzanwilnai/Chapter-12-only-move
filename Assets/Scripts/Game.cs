@@ -114,11 +114,14 @@ namespace Survivor
         void runPerformanceTest()
         {
             Logic.StartGame(m_gameData, m_balance);
+            Board.Show();
 
             double start = Time.realtimeSinceStartupAsDouble;
             for (int i = 0; i < 1000; i++)
                 Board.Tick(0.016f);
             double elapsed = Time.realtimeSinceStartupAsDouble - start;
+
+            Board.Hide();
 
             Debug.LogFormat("Board.Tick x1000: {0:F2} ms total, {1:F4} ms/call",
                 elapsed * 1000.0, elapsed);
