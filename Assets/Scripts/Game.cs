@@ -20,6 +20,9 @@ namespace Survivor
 
         int m_screenShotIdx = 0;
 
+        string m_perfResult = "";
+        GUIStyle m_perfStyle;
+
         // Start is called before the first frame update
         void Start()
         {
@@ -118,8 +121,22 @@ namespace Survivor
 
             Board.Hide();
 
-            Debug.LogFormat("Board.Tick x1000: {0:F2} ms total, {1:F4} ms/call",
+            m_perfResult = string.Format("Board.Tick x1000: {0:F2} ms total, {1:F4} ms/call",
                 elapsed * 1000.0, elapsed);
+            Debug.Log(m_perfResult);
+        }
+
+        void OnGUI()
+        {
+            if (string.IsNullOrEmpty(m_perfResult))
+                return;
+            if (m_perfStyle == null)
+            {
+                m_perfStyle = new GUIStyle(GUI.skin.label);
+                m_perfStyle.fontSize = 24;
+                m_perfStyle.normal.textColor = Color.yellow;
+            }
+            GUI.Label(new Rect(20, 20, 800, 60), m_perfResult, m_perfStyle);
         }
     }
 }
