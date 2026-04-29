@@ -148,7 +148,7 @@ namespace Survivor
                 gameData.AliveEnemyIndices, gameData.AliveEnemyCount,
                 gameData.EnemyType,
                 gameData.EnemyVelocityNative,
-                gameData.EnemyPosition,
+                ref gameData.EnemyPosition,
                 dt);
 
             checkEnemyOutOfBounds(gameData, balance, removedEnemyIndices, ref removedEnemyCount);
@@ -162,12 +162,12 @@ namespace Survivor
 
         [BurstCompile]
         static void moveEnemies(
-            NativeArray<int>    aliveEnemyIndices,
-            int                 aliveCount,
-            NativeArray<int>    enemyType,
-            NativeArray<float>  enemyVelocity,
-            NativeArray<float2> enemyPosition,
-            float               dt)
+            in NativeArray<int>    aliveEnemyIndices,
+            int                    aliveCount,
+            in NativeArray<int>    enemyType,
+            in NativeArray<float>  enemyVelocity,
+            ref NativeArray<float2> enemyPosition,
+            float                   dt)
         {
             for (int i = 0; i < aliveCount; i++)
             {
