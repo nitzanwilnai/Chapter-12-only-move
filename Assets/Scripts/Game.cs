@@ -97,10 +97,26 @@ namespace Survivor
 
             if (Input.GetKeyUp("s"))
                 captureScreenshot();
+
+            if (Input.GetKeyUp("t") && m_metaData.MenuState == MENU_STATE.MAIN_MENU)
+                runPerformanceTest();
         }
         void captureScreenshot()
         {
             ScreenCapture.CaptureScreenshot("screenshot" + (m_screenShotIdx++) + ".png");
+        }
+
+        void runPerformanceTest()
+        {
+            Logic.StartGame(m_gameData, m_balance);
+
+            double start = Time.realtimeSinceStartupAsDouble;
+            for (int i = 0; i < 1000; i++)
+                Board.Tick(0.016f);
+            double elapsed = Time.realtimeSinceStartupAsDouble - start;
+
+            Debug.LogFormat("Board.Tick x1000: {0:F2} ms total, {1:F4} ms/call",
+                elapsed * 1000.0, elapsed);
         }
     }
 }
