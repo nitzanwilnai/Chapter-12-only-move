@@ -164,13 +164,13 @@ namespace Survivor
 
             movePlayer(gameData, balance, dt);
 
-            SyncEnemyTransformsJob syncJob = new SyncEnemyTransformsJob
-            {
-                EnemyPosition    = gameData.EnemyPosition,
-                PoolToEnemyIndex = poolToEnemyIndex,
-            };
-            JobHandle syncHandle = syncJob.Schedule(enemyTransforms);
-            syncHandle.Complete();
+            // SyncEnemyTransformsJob syncJob = new SyncEnemyTransformsJob
+            // {
+            //     EnemyPosition    = gameData.EnemyPosition,
+            //     PoolToEnemyIndex = poolToEnemyIndex,
+            // };
+            // JobHandle syncHandle = syncJob.Schedule(enemyTransforms);
+            // syncHandle.Complete();
 
             gameOver = false;//checkGameOver(metaData, gameData, balance);
         }
@@ -278,18 +278,18 @@ namespace Survivor
         }
     }
 
-    [BurstCompile]
-    struct SyncEnemyTransformsJob : IJobParallelForTransform
-    {
-        [ReadOnly] public NativeArray<float2> EnemyPosition;
-        [ReadOnly] public NativeArray<int>    PoolToEnemyIndex;
+    // [BurstCompile]
+    // struct SyncEnemyTransformsJob : IJobParallelForTransform
+    // {
+    //     [ReadOnly] public NativeArray<float2> EnemyPosition;
+    //     [ReadOnly] public NativeArray<int>    PoolToEnemyIndex;
 
-        public void Execute(int poolIndex, TransformAccess transform)
-        {
-            int enemyIndex = PoolToEnemyIndex[poolIndex];
-            if (enemyIndex < 0) return;
-            float2 p = EnemyPosition[enemyIndex];
-            transform.localPosition = new Vector3(p.x, p.y, 0f);
-        }
-    }
+    //     public void Execute(int poolIndex, TransformAccess transform)
+    //     {
+    //         int enemyIndex = PoolToEnemyIndex[poolIndex];
+    //         if (enemyIndex < 0) return;
+    //         float2 p = EnemyPosition[enemyIndex];
+    //         transform.localPosition = new Vector3(p.x, p.y, 0f);
+    //     }
+    // }
 }

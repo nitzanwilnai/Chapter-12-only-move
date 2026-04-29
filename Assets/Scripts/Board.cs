@@ -5,6 +5,8 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Jobs;
+using Unity.Burst;
+using Unity.Jobs;
 
 namespace Survivor
 {
@@ -27,7 +29,7 @@ namespace Survivor
         int[] m_enemyToPoolIndex;
         int m_enemyPoolCount;
         TransformAccessArray m_enemyTransforms;
-        NativeArray<int>     m_poolToEnemyIndex;
+        NativeArray<int> m_poolToEnemyIndex;
 
         Camera m_mainCamera;
         Vector2 m_mouseDownPos;
@@ -58,7 +60,7 @@ namespace Survivor
             m_enemyPoolUnusedIndices = new int[MaxEnemyPoolSize];
             m_enemyPoolUnusedIndicesCount = 0;
 
-            m_enemyTransforms  = new TransformAccessArray(MaxEnemyPoolSize);
+            m_enemyTransforms = new TransformAccessArray(MaxEnemyPoolSize);
             m_poolToEnemyIndex = new NativeArray<int>(MaxEnemyPoolSize, Allocator.Persistent);
             for (int i = 0; i < MaxEnemyPoolSize; i++) m_poolToEnemyIndex[i] = -1;
 
@@ -77,7 +79,7 @@ namespace Survivor
 
         void OnDestroy()
         {
-            if (m_enemyTransforms.isCreated)  m_enemyTransforms.Dispose();
+            if (m_enemyTransforms.isCreated) m_enemyTransforms.Dispose();
             if (m_poolToEnemyIndex.IsCreated) m_poolToEnemyIndex.Dispose();
         }
 
@@ -181,6 +183,14 @@ namespace Survivor
                 m_enemyPoolUnusedIndices[m_enemyPoolUnusedIndicesCount++] = poolIndex;
                 m_poolToEnemyIndex[poolIndex] = -1;
             }
+
+            SyncEnemyTransformsJob syncJob = new SyncEnemyTransformsJob
+            {
+                EnemyPosition    = gameData.EnemyPosition,
+                PoolToEnemyIndex = m_poolToEnemyIndex,
+            };
+            JobHandle syncHandle = syncJob.Schedule(m_enemyTransforms);
+            syncHandle.Complete();
 
             m_boardGUI.GameTimeText.text = CommonVisual.GetTimeElapsedString(gameData.GameTime);
 
@@ -291,5 +301,21 @@ mousePosition = Input.GetTouch(0).position;
             GameDataIO.Save(gameData, balance);
             MetaDataIO.Save(metaData);
         }
+
+        [BurstCompile]
+        struct SyncEnemyTransformsJob : IJobParallelForTransform
+        {
+            [ReadOnly] public NativeArray<float2> EnemyPosition;
+            [ReadOnly] public NativeArray<int> PoolToEnemyIndex;
+
+            public void Execute(int poolIndex, TransformAccess transform)
+            {
+                int enemyIndex = PoolToEnemyIndex[poolIndex];
+                if (enemyIndex < 0) return;
+                float2 p = EnemyPosition[enemyIndex];
+                transform.localPosition = new Vector3(p.x, p.y, 0f);
+            }
+        }
+
     }
 }
