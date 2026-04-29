@@ -133,10 +133,10 @@ namespace Survivor
             if (m_perfStyle == null)
             {
                 m_perfStyle = new GUIStyle(GUI.skin.label);
-                m_perfStyle.fontSize = 24;
-                m_perfStyle.normal.textColor = Color.yellow;
+                m_perfStyle.fontSize = 48;
+                m_perfStyle.normal.textColor = Color.black;
             }
-            GUI.Label(new Rect(20, 20, 800, 60), m_perfResult, m_perfStyle);
+            GUI.Label(new Rect(20, 20, 1600, 100), m_perfResult, m_perfStyle);
         }
     }
 }
