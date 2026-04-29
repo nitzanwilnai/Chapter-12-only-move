@@ -11,19 +11,19 @@ namespace Survivor
     {
         public static void AllocateGameData(GameData gameData, Balance balance)
         {
-            gameData.EnemyPosition       = new NativeArray<float2>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.EnemyType           = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.AliveEnemyIndices   = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.DeadEnemyIndices    = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.EnemyPosition = new NativeArray<float2>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.EnemyType = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.AliveEnemyIndices = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.DeadEnemyIndices = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
             gameData.EnemyVelocityNative = new NativeArray<float>(balance.EnemyVelocity, Allocator.Persistent);
         }
 
         public static void FreeGameData(GameData gameData)
         {
-            if (gameData.EnemyPosition.IsCreated)       gameData.EnemyPosition.Dispose();
-            if (gameData.EnemyType.IsCreated)           gameData.EnemyType.Dispose();
-            if (gameData.AliveEnemyIndices.IsCreated)   gameData.AliveEnemyIndices.Dispose();
-            if (gameData.DeadEnemyIndices.IsCreated)    gameData.DeadEnemyIndices.Dispose();
+            if (gameData.EnemyPosition.IsCreated) gameData.EnemyPosition.Dispose();
+            if (gameData.EnemyType.IsCreated) gameData.EnemyType.Dispose();
+            if (gameData.AliveEnemyIndices.IsCreated) gameData.AliveEnemyIndices.Dispose();
+            if (gameData.DeadEnemyIndices.IsCreated) gameData.DeadEnemyIndices.Dispose();
             if (gameData.EnemyVelocityNative.IsCreated) gameData.EnemyVelocityNative.Dispose();
         }
 
@@ -145,7 +145,8 @@ namespace Survivor
             }
 
             moveEnemies(
-                gameData.AliveEnemyIndices, gameData.AliveEnemyCount,
+                gameData.AliveEnemyIndices,
+                gameData.AliveEnemyCount,
                 gameData.EnemyType,
                 gameData.EnemyVelocityNative,
                 ref gameData.EnemyPosition,
@@ -162,19 +163,19 @@ namespace Survivor
 
         [BurstCompile]
         static void moveEnemies(
-            in NativeArray<int>    aliveEnemyIndices,
-            int                    aliveCount,
-            in NativeArray<int>    enemyType,
-            in NativeArray<float>  enemyVelocity,
+            in NativeArray<int> aliveEnemyIndices,
+            int aliveCount,
+            in NativeArray<int> enemyType,
+            in NativeArray<float> enemyVelocity,
             ref NativeArray<float2> enemyPosition,
-            float                   dt)
+            float dt)
         {
             for (int i = 0; i < aliveCount; i++)
             {
-                int    enemyIndex = aliveEnemyIndices[i];
-                float2 pos        = enemyPosition[enemyIndex];
-                float2 dir        = -math.normalizesafe(pos);
-                float  speed      = enemyVelocity[enemyType[enemyIndex]];
+                int enemyIndex = aliveEnemyIndices[i];
+                float2 pos = enemyPosition[enemyIndex];
+                float2 dir = -math.normalizesafe(pos);
+                float speed = enemyVelocity[enemyType[enemyIndex]];
                 enemyPosition[enemyIndex] = pos + dir * speed * dt;
             }
         }
