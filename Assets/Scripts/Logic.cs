@@ -12,19 +12,19 @@ namespace Survivor
     {
         public static void AllocateGameData(GameData gameData, Balance balance)
         {
-            gameData.EnemyPosition       = new NativeArray<float2>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.EnemyType           = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.AliveEnemyIndices   = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
-            gameData.DeadEnemyIndices    = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.EnemyPosition = new NativeArray<float2>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.EnemyType = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.AliveEnemyIndices = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
+            gameData.DeadEnemyIndices = new NativeArray<int>(balance.MaxEnemies, Allocator.Persistent);
             gameData.EnemyVelocityNative = new NativeArray<float>(balance.EnemyVelocity, Allocator.Persistent);
         }
 
         public static void FreeGameData(GameData gameData)
         {
-            if (gameData.EnemyPosition.IsCreated)       gameData.EnemyPosition.Dispose();
-            if (gameData.EnemyType.IsCreated)           gameData.EnemyType.Dispose();
-            if (gameData.AliveEnemyIndices.IsCreated)   gameData.AliveEnemyIndices.Dispose();
-            if (gameData.DeadEnemyIndices.IsCreated)    gameData.DeadEnemyIndices.Dispose();
+            if (gameData.EnemyPosition.IsCreated) gameData.EnemyPosition.Dispose();
+            if (gameData.EnemyType.IsCreated) gameData.EnemyType.Dispose();
+            if (gameData.AliveEnemyIndices.IsCreated) gameData.AliveEnemyIndices.Dispose();
+            if (gameData.DeadEnemyIndices.IsCreated) gameData.DeadEnemyIndices.Dispose();
             if (gameData.EnemyVelocityNative.IsCreated) gameData.EnemyVelocityNative.Dispose();
         }
 
@@ -132,9 +132,7 @@ namespace Survivor
             Span<int> addedEnemyIndices,
             ref int addedEnemyCount,
             Span<int> removedEnemyIndices,
-            ref int removedEnemyCount,
-            TransformAccessArray enemyTransforms,
-            NativeArray<int>     poolToEnemyIndex
+            ref int removedEnemyCount
             )
         {
             gameData.GameTime += dt;
@@ -150,10 +148,10 @@ namespace Survivor
             MoveEnemiesJob moveJob = new MoveEnemiesJob
             {
                 AliveEnemyIndices = gameData.AliveEnemyIndices,
-                EnemyType         = gameData.EnemyType,
-                EnemyVelocity     = gameData.EnemyVelocityNative,
-                EnemyPosition     = gameData.EnemyPosition,
-                Dt                = dt,
+                EnemyType = gameData.EnemyType,
+                EnemyVelocity = gameData.EnemyVelocityNative,
+                EnemyPosition = gameData.EnemyPosition,
+                Dt = dt,
             };
             JobHandle moveHandle = moveJob.Schedule(gameData.AliveEnemyCount, 64);
             moveHandle.Complete();
@@ -163,14 +161,6 @@ namespace Survivor
             doEemyToEnemyCollision(gameData, balance);
 
             movePlayer(gameData, balance, dt);
-
-            // SyncEnemyTransformsJob syncJob = new SyncEnemyTransformsJob
-            // {
-            //     EnemyPosition    = gameData.EnemyPosition,
-            //     PoolToEnemyIndex = poolToEnemyIndex,
-            // };
-            // JobHandle syncHandle = syncJob.Schedule(enemyTransforms);
-            // syncHandle.Complete();
 
             gameOver = false;//checkGameOver(metaData, gameData, balance);
         }
@@ -259,8 +249,8 @@ namespace Survivor
     [BurstCompile]
     struct MoveEnemiesJob : IJobParallelFor
     {
-        [ReadOnly] public NativeArray<int>   AliveEnemyIndices;
-        [ReadOnly] public NativeArray<int>   EnemyType;
+        [ReadOnly] public NativeArray<int> AliveEnemyIndices;
+        [ReadOnly] public NativeArray<int> EnemyType;
         [ReadOnly] public NativeArray<float> EnemyVelocity;
 
         [NativeDisableParallelForRestriction]
@@ -270,10 +260,10 @@ namespace Survivor
 
         public void Execute(int i)
         {
-            int    enemyIndex = AliveEnemyIndices[i];
-            float2 pos        = EnemyPosition[enemyIndex];
-            float2 dir        = -math.normalizesafe(pos);
-            float  speed      = EnemyVelocity[EnemyType[enemyIndex]];
+            int enemyIndex = AliveEnemyIndices[i];
+            float2 pos = EnemyPosition[enemyIndex];
+            float2 dir = -math.normalizesafe(pos);
+            float speed = EnemyVelocity[EnemyType[enemyIndex]];
             EnemyPosition[enemyIndex] = pos + dir * speed * Dt;
         }
     }

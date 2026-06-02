@@ -62,7 +62,10 @@ namespace Survivor
 
             m_enemyTransforms = new TransformAccessArray(MaxEnemyPoolSize);
             m_poolToEnemyIndex = new NativeArray<int>(MaxEnemyPoolSize, Allocator.Persistent);
-            for (int i = 0; i < MaxEnemyPoolSize; i++) m_poolToEnemyIndex[i] = -1;
+            for (int i = 0; i < MaxEnemyPoolSize; i++)
+            {
+                m_poolToEnemyIndex[i] = -1;
+            }
 
             m_boardGUI = new BoardGUI();
             m_boardGUI.UI = AssetManager.Instance.GetInGameUI();
@@ -128,7 +131,10 @@ namespace Survivor
 
             if (m_enemyTransforms.isCreated) m_enemyTransforms.Dispose();
             m_enemyTransforms = new TransformAccessArray(MaxEnemyPoolSize);
-            for (int i = 0; i < MaxEnemyPoolSize; i++) m_poolToEnemyIndex[i] = -1;
+            for (int i = 0; i < MaxEnemyPoolSize; i++)
+            {
+                m_poolToEnemyIndex[i] = -1;
+            }
 
             m_player.SetActive(false);
 
@@ -158,9 +164,7 @@ namespace Survivor
                 addedEnemyIndices,
                 ref addedEnemyCount,
                 removedEnemyIndices,
-                ref removedEnemyCount,
-                m_enemyTransforms,
-                m_poolToEnemyIndex
+                ref removedEnemyCount
                 );
 
             for (int i = 0; i < addedEnemyCount; i++)
@@ -186,7 +190,7 @@ namespace Survivor
 
             SyncEnemyTransformsJob syncJob = new SyncEnemyTransformsJob
             {
-                EnemyPosition    = gameData.EnemyPosition,
+                EnemyPosition = gameData.EnemyPosition,
                 PoolToEnemyIndex = m_poolToEnemyIndex,
             };
             JobHandle syncHandle = syncJob.Schedule(m_enemyTransforms);
@@ -268,11 +272,11 @@ mousePosition = Input.GetTouch(0).position;
             {
                 InputCircleOut.SetActive(true);
                 m_mouseDownPos = mouseLocalPos;
+                InputCircleOut.transform.position = m_mouseDownPos;
             }
 
             if (mouseMove)
             {
-                InputCircleOut.transform.position = m_mouseDownPos;
                 Vector2 diff = (mouseLocalPos - m_mouseDownPos);
                 float dist = diff.magnitude;
                 if (dist > 1.0f)
